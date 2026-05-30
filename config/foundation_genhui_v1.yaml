@@ -1,0 +1,152 @@
+output_root: output/foundation/genhui_v1
+data_root: data/processed/genhui_all/unified_h5ad_moscot_growth_rate
+
+gene_vocab:
+  source: output/phase0/orthologs/mouse_human_1to1.parquet
+  canonical_order: mouse_unified_order_filtered
+
+splits:
+  split_seed: 42
+  split_ratios: [0.7, 0.1, 0.2]
+  strict_zero_shot:
+    heldout_families: [GSE275562]
+    external: [Norman]
+
+vae:
+  policy: vae_b_log1p_normal
+  batch_strategy: b2_encoder_nobatch_decoder_residual
+  smoke_batch_strategies: [b2_encoder_nobatch_decoder_residual, b3_none, b1_leaf_dataset]
+  latent_dims: [128, 256]
+  hidden_dim: 512
+  n_layers: 3
+  batch_size: 4096
+  smoke_batch_size: 256
+  max_epochs: 100
+  smoke_epochs: 10
+  smoke_steps: 200
+  qc_sample_size: 2048
+  throughput_batch_sizes: [1024, 2048, 4096]
+  throughput_steps: 50
+  throughput_latent_dims: [128, 256]
+  throughput_batch_strategies: [b1_leaf_dataset]
+  embedding_eval_sample_size: 10000
+  embedding_eval_batch_size: 512
+  full_name: scvi1024_l128_vae2
+  full_architecture: strict_scvi1024
+  full_latent_dim: 128
+  full_batch_strategy: b2_encoder_nobatch_decoder_residual
+  full_batch_size: 2048
+  full_epochs: 2
+  latent_cache_splits: [train, val, test]
+  latent_cache_batch_size: 512
+  latent_cache_shard_size: 50000
+  arch_search:
+    - name: mlp512_l128
+      architecture: mlp512
+      latent_dim: 128
+      batch_strategy: b1_leaf_dataset
+      batch_size: 4096
+      steps: 2000
+    - name: mlp512_l256
+      architecture: mlp512
+      latent_dim: 256
+      batch_strategy: b1_leaf_dataset
+      batch_size: 4096
+      steps: 2000
+    - name: scvi1024_l128
+      architecture: scvi_fclayers1024
+      latent_dim: 128
+      batch_strategy: b1_leaf_dataset
+      batch_size: 2048
+      steps: 2000
+    - name: scvi1024_l256
+      architecture: scvi_fclayers1024
+      latent_dim: 256
+      batch_strategy: b1_leaf_dataset
+      batch_size: 2048
+      steps: 2000
+    - name: resmlp1024_l256
+      architecture: resmlp1024
+      latent_dim: 256
+      batch_strategy: b1_leaf_dataset
+      batch_size: 2048
+      steps: 2000
+    - name: state_token_l128
+      architecture: state_token_small
+      latent_dim: 128
+      batch_strategy: b1_leaf_dataset
+      batch_size: 256
+      steps: 1000
+    - name: state_token_l256
+      architecture: state_token_small
+      latent_dim: 256
+      batch_strategy: b1_leaf_dataset
+      batch_size: 256
+      steps: 1000
+  leaf_sampling_alpha: 0.5
+
+dynamics:
+  experiment: g2a_m10_wdit_time2vecu_lowfreqcurl_uncertainty_adamw
+  controls:
+    - g2a_m10_wdit_time2vecu_lowfreqcurl_adamw
+    - g2a_m10_md_adamw
+  dit_size: small
+  transition_pairs: all_ordered
+  max_steps: 100000
+  smoke_steps: 20000
+  pretrain_epoch_equivalent: 2
+  batch_size: 1024
+  K: 8
+  lr: 0.0003
+  static_objective: static_dit_reconstruction
+  temporal_objective: temporal_dynamics
+  static_name: vae2_staticdit2
+  temporal_name: vae2_dynamicsdit2
+
+perturbation:
+  norman_path: 3rdparty/scDFM/data/norman/norman.h5ad
+  split_method: additive
+  max_steps: 1000
+  batch_size: 256
+  action_dim: 64
+  action_encoder: geneset_deepset_v1
+  gears_downstream_steps: 4000
+  gears_downstream_batch_size: 256
+  eval_every: 200
+  allow_unknown_batch: false
+  arms: [vae2_only, vae2_staticdit2, vae2_dynamicsdit2]
+
+gears:
+  downstream_python: .venv/blackwell-torch/bin/python
+  hybrid_dir: output/foundation/genhui_v1/gears_downstream_hybrid_bw
+  foundation_embedding_prefix: output/gears/norman_simulation_seed1_foundation_emb
+  foundation_embedding_mode: replace
+  foundation_embedding_epochs: 20
+  foundation_embedding_arms: [vae, static, dynamics]
+
+resources:
+  partition: blackwell,a100
+  cpus: 12
+  mem_mb: 120000
+  vae_smoke_mem_mb: 60000
+  runtime_min: 720
+  vae_smoke_runtime_min: 240
+  dynamics_mem_mb: 60000
+  perturbation_mem_mb: 60000
+  gears_downstream_partition: blackwell,a100
+  gears_foundation_export_partition: blackwell,a100
+  gears_foundation_embedding_partition: a100
+  gears_downstream_runtime_min: 360
+  gears_foundation_embedding_runtime_min: 240
+  gears_downstream_mem_mb: 60000
+  gears_foundation_embedding_mem_mb: 60000
+  latent_cache_mem_mb: 60000
+  gres: gpu:1
+
+wandb:
+  enabled: true
+  project: CellWorldModel
+  entity: null
+  group: foundation_genhui_v1
+  tags: foundation,genhui,vae,wdit,strict_zero_shot
+  mode: online

@@ -1,0 +1,480 @@
+"""Foundation-model workflow skeleton.
+
+Run from repository root:
+
+    snakemake -s workflow/foundation/Snakefile \
+      --configfile config/foundation_genhui_v1.yaml -n validate_config
+"""
+
+import shlex
+
+try:
+    CONFIGFILE_PATH = list(workflow.configfiles)[0]
+except Exception:
+    CONFIGFILE_PATH = ""
+
+
+OUT_ROOT = config["output_root"]
+VAE_CFG = config.get("vae", {})
+DYN_CFG = config.get("dynamics", {})
+PERT_CFG = config.get("perturbation", {})
+VAE_LATENT_DIMS = [str(x) for x in VAE_CFG.get("latent_dims", [128, 256])]
+VAE_SMOKE_BATCH_STRATEGIES = VAE_CFG.get("smoke_batch_strategies", ["b1_leaf_dataset", "b3_none"])
+VAE_THROUGHPUT_BATCH_SIZES = [str(x) for x in VAE_CFG.get("throughput_batch_sizes", [1024, 2048, 4096])]
+VAE_THROUGHPUT_LATENT_DIMS = [str(x) for x in VAE_CFG.get("throughput_latent_dims", [128, 256])]
+VAE_THROUGHPUT_BATCH_STRATEGIES = VAE_CFG.get("throughput_batch_strategies", ["b1_leaf_dataset"])
+VAE_ARCH_SEARCH = {str(item["name"]): item for item in VAE_CFG.get("arch_search", [])}
+VAE_EMBEDDING_EVAL_SAMPLE_SIZE = int(VAE_CFG.get("embedding_eval_sample_size", 10000))
+VAE_EMBEDDING_EVAL_BATCH_SIZE = int(VAE_CFG.get("embedding_eval_batch_size", 512))
+VAE_FULL_NAME = str(VAE_CFG.get("full_name", "scvi1024_l128_vae2"))
+VAE_FULL_EPOCHS = int(VAE_CFG.get("full_epochs", 2))
+VAE_FULL_DIR = f"{OUT_ROOT}/vae/full_{VAE_FULL_NAME}"
+VAE_FULL_EPOCH_OUTPUTS = expand(
+    f"{VAE_FULL_DIR}/epoch_{{epoch}}.pt",
+    epoch=list(range(1, VAE_FULL_EPOCHS + 1)),
+)
+LATENT_CACHE_DIR = f"{OUT_ROOT}/latents/{VAE_FULL_NAME}"
+LATENT_CACHE_SPLITS_ARG = " ".join(str(x) for x in VAE_CFG.get("latent_cache_splits", ["train", "val", "test"]))
+LATENT_CACHE_BATCH_SIZE = int(VAE_CFG.get("latent_cache_batch_size", 512))
+LATENT_CACHE_SHARD_SIZE = int(VAE_CFG.get("latent_cache_shard_size", 50000))
+DYNAMICS_EXPERIMENT = str(DYN_CFG.get("experiment", "g2a_m10_wdit_time2vecu_lowfreqcurl_uncertainty_adamw"))
+DYNAMICS_DIT_SIZE = str(DYN_CFG.get("dit_size", "small"))
+DYNAMICS_BATCH_SIZE = int(DYN_CFG.get("batch_size", 1024))
+DYNAMICS_K = int(DYN_CFG.get("K", DYN_CFG.get("k_samples", 8)))
+DYNAMICS_LR = float(DYN_CFG.get("lr", 3e-4))
+DYNAMICS_EPOCH_EQUIV = int(DYN_CFG.get("pretrain_epoch_equivalent", 2))
+DYNAMICS_STATIC_NAME = str(DYN_CFG.get("static_name", "vae2_staticdit2"))
+DYNAMICS_TEMPORAL_NAME = str(DYN_CFG.get("temporal_name", "vae2_dynamicsdit2"))
+DYNAMICS_STATIC_OBJECTIVE = str(DYN_CFG.get("static_objective", "static_dit_reconstruction"))
+DYNAMICS_TEMPORAL_OBJECTIVE = str(DYN_CFG.get("temporal_objective", "temporal_dynamics"))
+DYNAMICS_CHECKPOINT_EVERY = int(DYN_CFG.get("checkpoint_every_steps", 1000))
+DYNAMICS_LOG_EVERY = int(DYN_CFG.get("log_every", 50))
+DYNAMICS_STATIC_DELTA = float(DYN_CFG.get("static_delta", 1.0))
+TRANSITION_PAIR_POLICY = str(DYN_CFG.get("transition_pairs", "all_ordered"))
+TRANSITION_INDEX_DIR = f"{OUT_ROOT}/dynamics/transition_train_{TRANSITION_PAIR_POLICY}"
+DYNAMICS_STATIC_DIR = f"{OUT_ROOT}/dynamics/{DYNAMICS_STATIC_NAME}"
+DYNAMICS_TEMPORAL_DIR = f"{OUT_ROOT}/dynamics/{DYNAMICS_TEMPORAL_NAME}"
+PERTURB_ARMS = [str(x) for x in PERT_CFG.get("arms", ["vae2_only", "vae2_staticdit2", "vae2_dynamicsdit2"])]
+PERTURB_DIR = f"{OUT_ROOT}/perturbation"
+PERTURB_BASELINE_DIR = f"{PERTURB_DIR}/baselines"
+PERTURB_OUTPUTS = expand(
+    f"{PERTURB_DIR}/{{arm}}/summary.json",
+    arm=PERTURB_ARMS,
+)
+GEARS_CFG = config.get("gears", {})
+GEARS_DATA_DIR = str(GEARS_CFG.get("data_dir", "output/gears/data"))
+GEARS_OFFICIAL_MODEL_DIR = str(GEARS_CFG.get("official_model_dir", "output/gears/norman_simulation_seed1_gears20/model"))
+GEARS_OFFICIAL_EXPORT_DIR = str(GEARS_CFG.get("official_export_dir", "output/gears/norman_simulation_seed1_gears20_export"))
+GEARS_SHARED_EVAL_DIR = str(GEARS_CFG.get("shared_eval_dir", "output/gears/norman_simulation_seed1_gears20_shared_eval"))
+GEARS_FOUNDATION_EVAL_DIR = str(GEARS_CFG.get("foundation_eval_dir", f"{OUT_ROOT}/gears_norman"))
+GEARS_DOWNSTREAM_DIR = str(GEARS_CFG.get("downstream_dir", f"{OUT_ROOT}/gears_downstream"))
+GEARS_HYBRID_DIR = str(GEARS_CFG.get("hybrid_dir", f"{OUT_ROOT}/gears_downstream_hybrid"))
+GEARS_FOUNDATION_EMB_PREFIX = str(GEARS_CFG.get("foundation_embedding_prefix", "output/gears/norman_simulation_seed1_foundation_emb"))
+GEARS_FOUNDATION_EMB_MODE = str(GEARS_CFG.get("foundation_embedding_mode", "replace"))
+GEARS_FOUNDATION_EMB_EPOCHS = int(GEARS_CFG.get("foundation_embedding_epochs", 20))
+GEARS_FOUNDATION_EMB_ARMS = list(GEARS_CFG.get("foundation_embedding_arms", ["vae", "static", "dynamics"]))
+GEARS_VENV_PYTHON = str(GEARS_CFG.get("venv_python", ".venv/gears/bin/python"))
+GEARS_DOWNSTREAM_PYTHON = str(GEARS_CFG.get("downstream_python", "python"))
+GEARS_ADATA = f"{GEARS_DATA_DIR}/norman/perturb_processed.h5ad"
+GEARS_SPLIT = f"{GEARS_DATA_DIR}/norman/splits/norman_simulation_1_0.75.pkl"
+GEARS_SUBGROUP = f"{GEARS_DATA_DIR}/norman/splits/norman_simulation_1_0.75_subgroup.pkl"
+GEARS_FOUNDATION_SHARED_OUTPUTS = expand(
+    f"{GEARS_FOUNDATION_EVAL_DIR}/{{arm}}_shared_eval/shared_vocab_summary.json",
+    arm=PERTURB_ARMS,
+)
+GEARS_DOWNSTREAM_OUTPUTS = expand(
+    f"{GEARS_DOWNSTREAM_DIR}/{{arm}}/summary.json",
+    arm=PERTURB_ARMS,
+)
+GEARS_HYBRID_OUTPUTS = expand(
+    f"{GEARS_HYBRID_DIR}/{{arm}}/summary.json",
+    arm=PERTURB_ARMS,
+)
+GEARS_FOUNDATION_EMB_OUTPUTS = expand(
+    f"{GEARS_FOUNDATION_EMB_PREFIX}_{{arm}}_{GEARS_FOUNDATION_EMB_MODE}{GEARS_FOUNDATION_EMB_EPOCHS}/summary.json",
+    arm=GEARS_FOUNDATION_EMB_ARMS,
+)
+RES = config.get("resources", {})
+WANDB_CFG = config.get("wandb", {})
+
+
+def runtime_hms(minutes):
+    minutes = int(minutes)
+    return f"{minutes // 60:02d}:{minutes % 60:02d}:00"
+
+
+def mem_mb_to_slurm(mem_mb):
+    return f"{int(mem_mb)}M"
+
+
+def sbatch_wait(job_name, partition, runtime_min, cpus, mem_mb, stdout, stderr, command,
+                gres="gpu:1", qos=None, metadata=None):
+    parts = [
+        "python scripts/slurm/sbatch_wait.py",
+        f"--job-name {job_name}",
+        f"--partition {partition}",
+        f"--time {runtime_hms(runtime_min)}",
+        f"--cpus {int(cpus)}",
+        f"--mem {mem_mb_to_slurm(mem_mb)}",
+        f"--output {stdout}",
+        f"--error {stderr}",
+    ]
+    if gres:
+        parts.append(f"--gres {gres}")
+    if qos:
+        parts.append(f"--qos {qos}")
+    if metadata:
+        parts.append(f"--metadata {metadata}")
+    parts.append(f"--cmd {shlex.quote(command)}")
+    return " ".join(parts)
+
+
+def wandb_args(job_name, tags_extra=""):
+    if not WANDB_CFG.get("enabled", False):
+        return ""
+    args = [
+        "--wandb",
+        f"--wandb-project {WANDB_CFG.get('project', 'CellWorldModel')}",
+        f"--wandb-group {WANDB_CFG.get('group', 'foundation_genhui_v1')}",
+        f"--wandb-name {job_name}",
+        f"--wandb-mode {WANDB_CFG.get('mode', 'online')}",
+    ]
+    entity = WANDB_CFG.get("entity")
+    if entity:
+        args.append(f"--wandb-entity {entity}")
+    tags = WANDB_CFG.get("tags")
+    if tags_extra:
+        tags = f"{tags},{tags_extra}" if tags else tags_extra
+    if tags:
+        args.append(f"--wandb-tags {tags}")
+    return " ".join(args)
+
+
+def vae_arch_command(wc):
+    item = VAE_ARCH_SEARCH[wc.name]
+    return (
+        "source 3rdparty/BranchSBM/.branchsbm-venv/bin/activate && "
+        "export PYTORCH_CUDA_ALLOC_CONF=${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True} && "
+        "PYTHONPATH=src python -m cellworldmodel.script.run_foundation train-vae-smoke "
+        f"--config {CONFIGFILE_PATH} "
+        f"--catalog-dir {OUT_ROOT}/catalog "
+        f"--output-dir {OUT_ROOT}/vae/arch_{wc.name} "
+        f"--architecture {item['architecture']} "
+        f"--latent-dim {item['latent_dim']} "
+        f"--batch-strategy {item.get('batch_strategy', 'b1_leaf_dataset')} "
+        f"--max-steps {item['steps']} "
+        f"--batch-size {item['batch_size']} "
+        f"--qc-sample-size {VAE_CFG.get('qc_sample_size', 2048)} "
+        "--seed 0 "
+        f"{wandb_args(f'foundation-vae-arch-{wc.name}', tags_extra='vae_arch_search')}"
+    )
+
+
+def vae_full_command():
+    return (
+        "source 3rdparty/BranchSBM/.branchsbm-venv/bin/activate && "
+        "export PYTORCH_CUDA_ALLOC_CONF=${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True} && "
+        "PYTHONPATH=src python -m cellworldmodel.script.run_foundation train-vae-full "
+        f"--config {CONFIGFILE_PATH} "
+        f"--catalog-dir {OUT_ROOT}/catalog "
+        f"--output-dir {VAE_FULL_DIR} "
+        f"--name {VAE_FULL_NAME} "
+        f"--architecture {VAE_CFG.get('full_architecture', 'scvi_fclayers1024')} "
+        f"--latent-dim {VAE_CFG.get('full_latent_dim', 128)} "
+        f"--batch-strategy {VAE_CFG.get('full_batch_strategy', 'b1_leaf_dataset')} "
+        f"--epochs {VAE_FULL_EPOCHS} "
+        f"--batch-size {VAE_CFG.get('full_batch_size', 2048)} "
+        f"--qc-sample-size {VAE_CFG.get('qc_sample_size', 4096)} "
+        "--seed 0 "
+        f"{wandb_args(f'foundation-vae-full-{VAE_FULL_NAME}', tags_extra='vae_full')}"
+    )
+
+
+def foundation_dynamics_command(name, objective, output_dir, extra_args=""):
+    return (
+        "source 3rdparty/BranchSBM/.branchsbm-venv/bin/activate && "
+        "export PYTORCH_CUDA_ALLOC_CONF=${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True} && "
+        "PYTHONPATH=src python -m cellworldmodel.script.run_foundation train-foundation-dynamics "
+        f"--config {CONFIGFILE_PATH} "
+        f"--catalog-dir {OUT_ROOT}/catalog "
+        f"--output-dir {output_dir} "
+        f"--name {name} "
+        f"--objective {objective} "
+        f"--experiment {DYNAMICS_EXPERIMENT} "
+        f"--dit-size {DYNAMICS_DIT_SIZE} "
+        f"--epoch-equivalent {DYNAMICS_EPOCH_EQUIV} "
+        f"--batch-size {DYNAMICS_BATCH_SIZE} "
+        f"--k-samples {DYNAMICS_K} "
+        f"--lr {DYNAMICS_LR} "
+        f"--checkpoint-every-steps {DYNAMICS_CHECKPOINT_EVERY} "
+        f"--log-every {DYNAMICS_LOG_EVERY} "
+        "--seed 0 "
+        f"{extra_args} "
+        f"{wandb_args(f'foundation-dynamics-{name}', tags_extra='foundation_dynamics')}"
+    )
+
+
+def perturbation_command(name, init_name, output_dir, init_checkpoint=""):
+    extra_init = f"--init-checkpoint {init_checkpoint}" if init_checkpoint else ""
+    allow_unknown = "--allow-unknown-batch" if bool(PERT_CFG.get("allow_unknown_batch", False)) else ""
+    return (
+        "source 3rdparty/BranchSBM/.branchsbm-venv/bin/activate && "
+        "export PYTORCH_CUDA_ALLOC_CONF=${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True} && "
+        "PYTHONPATH=src python -m cellworldmodel.script.run_foundation train-perturbation-finetune "
+        f"--config {CONFIGFILE_PATH} "
+        f"--catalog-dir {OUT_ROOT}/catalog "
+        f"--output-dir {output_dir} "
+        f"--name {name} "
+        f"--init-name {init_name} "
+        f"--norman-path {PERT_CFG.get('norman_path', '3rdparty/scDFM/data/norman/norman.h5ad')} "
+        f"--vae-checkpoint {VAE_FULL_DIR}/epoch_{VAE_FULL_EPOCHS}.pt "
+        f"{extra_init} "
+        f"--experiment {DYNAMICS_EXPERIMENT} "
+        f"--dit-size {DYNAMICS_DIT_SIZE} "
+        f"--max-steps {PERT_CFG.get('max_steps', 1000)} "
+        f"--batch-size {PERT_CFG.get('batch_size', 256)} "
+        f"--k-samples {DYNAMICS_K} "
+        f"--action-dim {PERT_CFG.get('action_dim', 64)} "
+        f"--action-encoder {PERT_CFG.get('action_encoder', 'geneset_deepset_v1')} "
+        f"--lr {DYNAMICS_LR} "
+        f"--split-method {PERT_CFG.get('split_method', 'additive')} "
+        f"--eval-every {PERT_CFG.get('eval_every', 200)} "
+        f"{allow_unknown} "
+        "--seed 0 "
+        f"{wandb_args(f'foundation-perturb-{name}', tags_extra='foundation_perturbation')}"
+    )
+
+
+def perturbation_baseline_command():
+    return (
+        "source 3rdparty/BranchSBM/.branchsbm-venv/bin/activate && "
+        "PYTHONPATH=src python -m cellworldmodel.script.run_foundation run-perturbation-baselines "
+        f"--config {CONFIGFILE_PATH} "
+        f"--catalog-dir {OUT_ROOT}/catalog "
+        f"--output-dir {PERTURB_BASELINE_DIR} "
+        f"--norman-path {PERT_CFG.get('norman_path', '3rdparty/scDFM/data/norman/norman.h5ad')} "
+        f"--vae-checkpoint {VAE_FULL_DIR}/epoch_{VAE_FULL_EPOCHS}.pt "
+        f"--dynamics-checkpoint {DYNAMICS_TEMPORAL_DIR}/model.pt "
+        f"--split-method {PERT_CFG.get('split_method', 'additive')} "
+        f"--max-cells-per-condition {PERT_CFG.get('baseline_max_cells_per_condition', 512)} "
+        f"--eval-cells-per-condition {PERT_CFG.get('baseline_eval_cells_per_condition', 256)} "
+        "--device cuda"
+    )
+
+
+def gears_init_name(arm):
+    if arm == "vae2_staticdit2":
+        return "static_dit"
+    if arm == "vae2_dynamicsdit2":
+        return "temporal_dynamics"
+    return "random"
+
+
+def gears_init_checkpoint(arm):
+    if arm == "vae2_staticdit2":
+        return f"{DYNAMICS_STATIC_DIR}/model.pt"
+    if arm == "vae2_dynamicsdit2":
+        return f"{DYNAMICS_TEMPORAL_DIR}/model.pt"
+    return ""
+
+
+def gears_downstream_command(arm, model_type="direct_action", output_dir=None):
+    init_checkpoint = gears_init_checkpoint(arm)
+    extra_init = f"--init-checkpoint {init_checkpoint}" if init_checkpoint else ""
+    output_dir = output_dir or f"{GEARS_DOWNSTREAM_DIR}/{arm}"
+    direction_arg = (
+        f"--direction-weight {PERT_CFG['gears_direction_weight']} "
+        if "gears_direction_weight" in PERT_CFG else ""
+    )
+    return (
+        f"PYTHONPATH=src {GEARS_DOWNSTREAM_PYTHON} -m cellworldmodel.script.run_foundation train-gears-downstream "
+        f"--config {CONFIGFILE_PATH} "
+        f"--gears-adata {GEARS_ADATA} "
+        f"--split {GEARS_SPLIT} "
+        f"--subgroup {GEARS_SUBGROUP} "
+        f"--gene-vocab {OUT_ROOT}/catalog/gene_vocab.parquet "
+        f"--vae-checkpoint {VAE_FULL_DIR}/epoch_{VAE_FULL_EPOCHS}.pt "
+        f"{extra_init} "
+        f"--init-name {gears_init_name(arm)} "
+        f"--output-dir {output_dir} "
+        f"--experiment {DYNAMICS_EXPERIMENT} "
+        f"--dit-size {DYNAMICS_DIT_SIZE} "
+        f"--max-steps {PERT_CFG.get('gears_downstream_steps', 1000)} "
+        f"--batch-size {PERT_CFG.get('gears_downstream_batch_size', 256)} "
+        f"--k-samples {DYNAMICS_K} "
+        f"--action-dim {PERT_CFG.get('action_dim', 64)} "
+        f"--lr {PERT_CFG.get('gears_downstream_lr', DYNAMICS_LR)} "
+        f"--latent-weight {PERT_CFG.get('gears_latent_weight', 0.1)} "
+        f"--expr-weight {PERT_CFG.get('gears_expr_weight', 1.0)} "
+        f"--de-weight {PERT_CFG.get('gears_de_weight', 2.0)} "
+        f"--delta-weight {PERT_CFG.get('gears_delta_weight', 0.2)} "
+        f"{direction_arg}"
+        f"--model-type {model_type} "
+        "--device cuda"
+    )
+
+
+def gears_foundation_embedding_source(arm):
+    if arm == "vae":
+        return "vae"
+    if arm == "static":
+        return "static_dit"
+    if arm == "dynamics":
+        return "dynamics_dit"
+    raise ValueError(f"Unknown GEARS foundation embedding arm: {arm}")
+
+
+def gears_foundation_embedding_dynamics_arg(arm):
+    if arm == "static":
+        return f"--dynamics-checkpoint {DYNAMICS_STATIC_DIR}/model.pt "
+    if arm == "dynamics":
+        return f"--dynamics-checkpoint {DYNAMICS_TEMPORAL_DIR}/model.pt "
+    return ""
+
+
+def gears_foundation_embedding_command(arm):
+    out = f"{GEARS_FOUNDATION_EMB_PREFIX}_{arm}_{GEARS_FOUNDATION_EMB_MODE}{GEARS_FOUNDATION_EMB_EPOCHS}"
+    return (
+        f"PYTHONPATH=src {GEARS_VENV_PYTHON} scripts/gears/run_norman_gears_foundation_emb.py "
+        f"--gears-repo 3rdparty/GEARS "
+        f"--data-dir {GEARS_DATA_DIR} "
+        f"--output-dir {out} "
+        f"--data-name norman "
+        f"--split simulation "
+        f"--seed 1 "
+        f"--epochs {GEARS_FOUNDATION_EMB_EPOCHS} "
+        f"--batch-size {GEARS_CFG.get('foundation_embedding_batch_size', 32)} "
+        f"--test-batch-size {GEARS_CFG.get('foundation_embedding_test_batch_size', 128)} "
+        f"--hidden-size {GEARS_CFG.get('foundation_embedding_hidden_size', 64)} "
+        f"--lr {GEARS_CFG.get('foundation_embedding_lr', 1e-3)} "
+        f"--device cuda:0 "
+        f"--gene-vocab {OUT_ROOT}/catalog/gene_vocab.parquet "
+        f"--vae-checkpoint {VAE_FULL_DIR}/epoch_{VAE_FULL_EPOCHS}.pt "
+        f"--foundation-source {gears_foundation_embedding_source(arm)} "
+        f"--foundation-mode {GEARS_FOUNDATION_EMB_MODE} "
+        f"--foundation-k-samples {GEARS_CFG.get('foundation_embedding_k_samples', 2)} "
+        f"--foundation-embed-batch-size {GEARS_CFG.get('foundation_embedding_embed_batch_size', 512)} "
+        f"{gears_foundation_embedding_dynamics_arg(arm)}"
+        f"--save-test-res && "
+        f"PYTHONPATH=src {GEARS_VENV_PYTHON} -m cellworldmodel.script.run_foundation eval-gears-shared-vocab "
+        f"--gears-adata {GEARS_ADATA} "
+        f"--gears-test-res {out}/test_res.pkl "
+        f"--ours-genes {OUT_ROOT}/catalog/gene_vocab.parquet "
+        f"--subgroup {GEARS_SUBGROUP} "
+        f"--output-dir {out}/shared_eval"
+    )
+
+
+vae_smoke_outputs = expand(
+    f"{OUT_ROOT}/vae/smoke_{{strategy}}_latent{{latent_dim}}/qc.json",
+    strategy=VAE_SMOKE_BATCH_STRATEGIES,
+    latent_dim=VAE_LATENT_DIMS,
+)
+vae_throughput_outputs = expand(
+    f"{OUT_ROOT}/vae/throughput_{{strategy}}_latent{{latent_dim}}_batch{{batch_size}}/qc.json",
+    strategy=VAE_THROUGHPUT_BATCH_STRATEGIES,
+    latent_dim=VAE_THROUGHPUT_LATENT_DIMS,
+    batch_size=VAE_THROUGHPUT_BATCH_SIZES,
+)
+vae_arch_outputs = expand(
+    f"{OUT_ROOT}/vae/arch_{{name}}/qc.json",
+    name=list(VAE_ARCH_SEARCH.keys()),
+)
+vae_arch_eval_outputs = expand(
+    f"{OUT_ROOT}/vae/arch_{{name}}/embedding_eval/metrics.json",
+    name=list(VAE_ARCH_SEARCH.keys()),
+)
+
+
+rule all:
+    input:
+        f"{OUT_ROOT}/manifest/config.validated.txt",
+        f"{OUT_ROOT}/catalog/gene_vocab.parquet",
+        f"{OUT_ROOT}/catalog/data_manifest.json",
+
+
+rule vae_smoke_all:
+    input:
+        vae_smoke_outputs,
+
+
+rule vae_throughput_all:
+    input:
+        vae_throughput_outputs,
+
+
+rule vae_arch_search_all:
+    input:
+        vae_arch_outputs,
+
+
+rule vae_arch_eval_all:
+    input:
+        vae_arch_eval_outputs,
+
+
+rule vae_full_all:
+    input:
+        f"{VAE_FULL_DIR}/qc.json",
+        f"{VAE_FULL_DIR}/model.pt",
+        VAE_FULL_EPOCH_OUTPUTS,
+
+
+rule latent_cache_all:
+    input:
+        f"{LATENT_CACHE_DIR}/manifest.json",
+
+
+rule transition_index_all:
+    input:
+        f"{TRANSITION_INDEX_DIR}/transition_index.parquet",
+
+
+rule dynamics_pretrain_all:
+    input:
+        f"{DYNAMICS_STATIC_DIR}/summary.json",
+        f"{DYNAMICS_TEMPORAL_DIR}/summary.json",
+
+
+rule perturbation_finetune_all:
+    input:
+        PERTURB_OUTPUTS,
+
+
+rule perturbation_baseline_all:
+    input:
+        f"{PERTURB_BASELINE_DIR}/summary.json",
+
+
+rule gears_shared_eval_all:
+    input:
+        f"{GEARS_SHARED_EVAL_DIR}/shared_vocab_summary.json",
+
+
+rule gears_foundation_shared_eval_all:
+    input:
+        GEARS_FOUNDATION_SHARED_OUTPUTS,
+
+
+rule gears_downstream_train_all:
+    input:
+        GEARS_DOWNSTREAM_OUTPUTS,
+
+
+rule gears_hybrid_train_all:
+    input:
+        GEARS_HYBRID_OUTPUTS,
+
+
+rule gears_foundation_embedding_all:
+    input:
+        GEARS_FOUNDATION_EMB_OUTPUTS,
+
+
+include: "rules/catalog.smk"
+include: "rules/vae.smk"
+include: "rules/eval_vae.smk"
+include: "rules/latent.smk"
+include: "rules/dynamics.smk"
+include: "rules/perturbation.smk"
+include: "rules/gears_shared.smk"

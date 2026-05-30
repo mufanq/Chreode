@@ -1,0 +1,49 @@
+cff-version: 1.2.0
+title: "Chreode: A Cell World Model for One-Step Temporal Dynamics and Perturbation Prediction"
+message: "If you use this software, please cite our paper."
+type: software
+authors:
+  - given-names: Mufan
+    family-names: Qiu
+    affiliation: "University of North Carolina at Chapel Hill"
+  - given-names: Genhui
+    family-names: Zheng
+    affiliation: "The University of Texas at Austin"
+  - given-names: Yinuo
+    family-names: Xu
+    affiliation: "University of Pennsylvania"
+  - given-names: Ruichen
+    family-names: Zhang
+    affiliation: "University of North Carolina at Chapel Hill"
+  - given-names: Ying
+    family-names: Ding
+    affiliation: "The University of Texas at Austin"
+  - given-names: Qi
+    family-names: Long
+    affiliation: "University of Pennsylvania"
+  - given-names: Tianlong
+    family-names: Chen
+    affiliation: "University of North Carolina at Chapel Hill"
+repository-code: "https://github.com/mufanq/Chreode"
+license: MIT
+version: 0.1.0
+date-released: 2026-05-30
+preferred-citation:
+  type: article
+  title: "Chreode: A Cell World Model for One-Step Temporal Dynamics and Perturbation Prediction"
+  year: 2026
+  authors:
+    - given-names: Mufan
+      family-names: Qiu
+    - given-names: Genhui
+      family-names: Zheng
+    - given-names: Yinuo
+      family-names: Xu
+    - given-names: Ruichen
+      family-names: Zhang
+    - given-names: Ying
+      family-names: Ding
+    - given-names: Qi
+      family-names: Long
+    - given-names: Tianlong
+      family-names: Chen

@@ -1,0 +1,25 @@
+data_type: "scrna"
+data_name: "veres"
+data_path: "output/paper_bench/branchsbm_data/veres_scvi128.csv"
+accelerator: "gpu"
+hidden_dims_geopath: [512, 512, 512]
+hidden_dims_flow: [512, 512, 512]
+hidden_dims_growth: [512, 512, 512]
+dim: 128
+t_exclude: []
+time_geopath: true
+whiten: false
+velocity_metric: "rbf"
+metric_patience: 25
+patience: 25
+patience_geopath: 50
+n_centers: 300
+kappa: 2
+rho: 0.001
+alpha_metric: 1.0
+metric_epochs: 100
+branchsbm: true
+seeds: [42]
+branches: 5
+metric_clusters: 2
+batch_size: 256
