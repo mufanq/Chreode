@@ -17,7 +17,7 @@ from pathlib import Path
 
 from huggingface_hub import snapshot_download
 
-REPO_ID = "mufanq/chreode-phase0"
+REPO_ID = "WhenceFade/chreode-phase0"
 DEST = Path("data/phase0")
 
 

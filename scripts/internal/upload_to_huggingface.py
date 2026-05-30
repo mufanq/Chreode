@@ -28,9 +28,9 @@ import tempfile
 
 from huggingface_hub import HfApi, create_repo
 
-REPO_PRETRAINED = "mufanq/chreode-pretrained"
-REPO_DOWNSTREAM = "mufanq/chreode-downstream"
-REPO_PHASE0     = "mufanq/chreode-phase0"
+REPO_PRETRAINED = "WhenceFade/chreode-pretrained"
+REPO_DOWNSTREAM = "WhenceFade/chreode-downstream"
+REPO_PHASE0     = "WhenceFade/chreode-phase0"
 
 CWM_ROOT = Path(
     os.environ.get(
@@ -157,7 +157,7 @@ def _downstream_readme() -> str:
         "---\n\n"
         "# Chreode downstream fine-tuned heads\n\n"
         "Three seeds each for Weinreb and Veres, fine-tuned 5000 epochs on top "
-        "of the released Chreode backbone (`mufanq/chreode-pretrained`).\n\n"
+        "of the released Chreode backbone (`WhenceFade/chreode-pretrained`).\n\n"
         "See https://github.com/mufanq/Chreode reproduce/02_weinreb.md and "
         "reproduce/03_veres.md for usage.\n"
     )

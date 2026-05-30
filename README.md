@@ -6,7 +6,7 @@ Mufan Qiu¹, Genhui Zheng², Yinuo Xu³, Ruichen Zhang¹, Ying Ding², Qi Long³
 
 ¹ University of North Carolina at Chapel Hill   ² The University of Texas at Austin   ³ University of Pennsylvania
 
-[**Paper (PDF)**](paper/chreode.pdf) · [**arXiv**](https://arxiv.org/abs/2606.XXXXX) · [**Pretrained weights**](https://huggingface.co/mufanq/chreode-pretrained) · [**Downstream checkpoints**](https://huggingface.co/mufanq/chreode-downstream) · [**Phase-0 artifacts**](https://huggingface.co/datasets/mufanq/chreode-phase0)
+[**Paper (PDF)**](paper/chreode.pdf) · [**arXiv**](https://arxiv.org/abs/2606.XXXXX) · [**Pretrained weights**](https://huggingface.co/WhenceFade/chreode-pretrained) · [**Downstream checkpoints**](https://huggingface.co/WhenceFade/chreode-downstream) · [**Phase-0 artifacts**](https://huggingface.co/datasets/WhenceFade/chreode-phase0)
 
 ---
 
@@ -109,7 +109,7 @@ pytest tests/test_foundation_config.py tests/test_foundation_vae.py -q
 from huggingface_hub import snapshot_download
 from cellworldmodel.foundation import load_chreode_backbone   # Stage 1 VAE + Stage 2 W-DiT
 
-ckpt_dir = snapshot_download(repo_id="mufanq/chreode-pretrained")
+ckpt_dir = snapshot_download(repo_id="WhenceFade/chreode-pretrained")
 model = load_chreode_backbone(ckpt_dir, device="cuda")
 
 # Given expression matrix X (cells × 16,520 mouse–human orthologs) at time t,
@@ -149,9 +149,9 @@ Three operational facts are not in the paper but matter for reproduction. See [r
 
 | Artifact | Repo | Contents | Size |
 |---|---|---|---|
-| Pretrained backbone | [`mufanq/chreode-pretrained`](https://huggingface.co/mufanq/chreode-pretrained) | Stage 1 scVI encoder; Stage 2 Waddington-DiT (Dynamics); Stage 2 Static-DiT (control arm for §5.4) | ≈ 4 GB |
-| Downstream fine-tuned | [`mufanq/chreode-downstream`](https://huggingface.co/mufanq/chreode-downstream) | Weinreb (3 seeds) and Veres (3 seeds) fine-tuned heads | ≈ 230 MB |
-| Phase-0 preprocessing | [`mufanq/chreode-phase0`](https://huggingface.co/datasets/mufanq/chreode-phase0) | Mouse–human 1:1 ortholog vocabulary, unified cell index, split manifest, downstream-task h5ad slices | ≈ 5.6 GB |
+| Pretrained backbone | [`WhenceFade/chreode-pretrained`](https://huggingface.co/WhenceFade/chreode-pretrained) | Stage 1 scVI encoder; Stage 2 Waddington-DiT (Dynamics); Stage 2 Static-DiT (control arm for §5.4) | ≈ 4 GB |
+| Downstream fine-tuned | [`WhenceFade/chreode-downstream`](https://huggingface.co/WhenceFade/chreode-downstream) | Weinreb (3 seeds) and Veres (3 seeds) fine-tuned heads | ≈ 230 MB |
+| Phase-0 preprocessing | [`WhenceFade/chreode-phase0`](https://huggingface.co/datasets/WhenceFade/chreode-phase0) | Mouse–human 1:1 ortholog vocabulary, unified cell index, split manifest, downstream-task h5ad slices | ≈ 5.6 GB |
 
 `scripts/download_weights.py` and `scripts/download_phase0.py` wrap `huggingface_hub.snapshot_download` and place files where the `reproduce/` instructions expect them.
 

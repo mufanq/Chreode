@@ -38,9 +38,9 @@ python scripts/download_phase0.py             # ≈ 5.6 GB
 
 These pull from:
 
-- [`mufanq/chreode-pretrained`](https://huggingface.co/mufanq/chreode-pretrained)
-- [`mufanq/chreode-downstream`](https://huggingface.co/mufanq/chreode-downstream)
-- [`mufanq/chreode-phase0`](https://huggingface.co/datasets/mufanq/chreode-phase0)
+- [`WhenceFade/chreode-pretrained`](https://huggingface.co/WhenceFade/chreode-pretrained)
+- [`WhenceFade/chreode-downstream`](https://huggingface.co/WhenceFade/chreode-downstream)
+- [`WhenceFade/chreode-phase0`](https://huggingface.co/datasets/WhenceFade/chreode-phase0)
 
 After download the relevant paths line up with what every doc references:
 

@@ -21,7 +21,7 @@ from pathlib import Path
 
 from huggingface_hub import snapshot_download
 
-REPO_ID = "mufanq/chreode-pretrained"
+REPO_ID = "WhenceFade/chreode-pretrained"
 DEST = Path("checkpoints/pretrained")
 
 

@@ -16,7 +16,7 @@ from pathlib import Path
 
 from huggingface_hub import snapshot_download
 
-REPO_ID = "mufanq/chreode-downstream"
+REPO_ID = "WhenceFade/chreode-downstream"
 DEST = Path("checkpoints/downstream")
 
 

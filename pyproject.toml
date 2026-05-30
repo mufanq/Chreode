@@ -77,9 +77,9 @@ dev = ["pytest>=7.0", "ruff>=0.1", "ipython"]
 Homepage = "https://github.com/mufanq/Chreode"
 Paper = "https://arxiv.org/abs/2606.XXXXX"
 Repository = "https://github.com/mufanq/Chreode"
-"Pretrained weights" = "https://huggingface.co/mufanq/chreode-pretrained"
-"Downstream checkpoints" = "https://huggingface.co/mufanq/chreode-downstream"
-"Phase-0 artifacts" = "https://huggingface.co/datasets/mufanq/chreode-phase0"
+"Pretrained weights" = "https://huggingface.co/WhenceFade/chreode-pretrained"
+"Downstream checkpoints" = "https://huggingface.co/WhenceFade/chreode-downstream"
+"Phase-0 artifacts" = "https://huggingface.co/datasets/WhenceFade/chreode-phase0"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
