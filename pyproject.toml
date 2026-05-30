@@ -75,7 +75,7 @@ dev = ["pytest>=7.0", "ruff>=0.1", "ipython"]
 
 [project.urls]
 Homepage = "https://github.com/mufanq/Chreode"
-Paper = "https://arxiv.org/abs/2606.XXXXX"
+Paper = "https://arxiv.org/abs/2605.28111"
 Repository = "https://github.com/mufanq/Chreode"
 "Pretrained weights" = "https://huggingface.co/WhenceFade/chreode-pretrained"
 "Downstream checkpoints" = "https://huggingface.co/WhenceFade/chreode-downstream"

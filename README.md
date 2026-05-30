@@ -6,7 +6,7 @@ Mufan Qiu¹, Genhui Zheng², Yinuo Xu³, Ruichen Zhang¹, Ying Ding², Qi Long³
 
 ¹ University of North Carolina at Chapel Hill   ² The University of Texas at Austin   ³ University of Pennsylvania
 
-[**Paper (PDF)**](paper/chreode.pdf) · [**arXiv**](https://arxiv.org/abs/2606.XXXXX) · [**Pretrained weights**](https://huggingface.co/WhenceFade/chreode-pretrained) · [**Downstream checkpoints**](https://huggingface.co/WhenceFade/chreode-downstream) · [**Phase-0 artifacts**](https://huggingface.co/datasets/WhenceFade/chreode-phase0)
+[**Paper (PDF)**](paper/chreode.pdf) · [**arXiv**](https://arxiv.org/abs/2605.28111) · [**Pretrained weights**](https://huggingface.co/WhenceFade/chreode-pretrained) · [**Downstream checkpoints**](https://huggingface.co/WhenceFade/chreode-downstream) · [**Phase-0 artifacts**](https://huggingface.co/datasets/WhenceFade/chreode-phase0)
 
 ---
 
