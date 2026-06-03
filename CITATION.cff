@@ -32,6 +32,11 @@ preferred-citation:
   type: article
   title: "Chreode: A Cell World Model for One-Step Temporal Dynamics and Perturbation Prediction"
   year: 2026
+  url: "https://arxiv.org/abs/2605.28111"
+  identifiers:
+    - type: other
+      value: "arXiv:2605.28111"
+      description: "arXiv preprint identifier"
   authors:
     - given-names: Mufan
       family-names: Qiu

@@ -160,11 +160,14 @@ Three operational facts are not in the paper but matter for reproduction. See [r
 If you use Chreode in your research, please cite:
 
 ```bibtex
-@inproceedings{qiu2026chreode,
-  title     = {Chreode: A Cell World Model for One-Step Temporal Dynamics and Perturbation Prediction},
-  author    = {Qiu, Mufan and Zheng, Genhui and Xu, Yinuo and Zhang, Ruichen and Ding, Ying and Long, Qi and Chen, Tianlong},
-  booktitle = {Advances in Neural Information Processing Systems},
-  year      = {2026}
+@article{qiu2026chreode,
+  title         = {Chreode: A Cell World Model for One-Step Temporal Dynamics and Perturbation Prediction},
+  author        = {Qiu, Mufan and Zheng, Genhui and Xu, Yinuo and Zhang, Ruichen and Ding, Ying and Long, Qi and Chen, Tianlong},
+  year          = {2026},
+  eprint        = {2605.28111},
+  archivePrefix = {arXiv},
+  primaryClass  = {q-bio.QM},
+  url           = {https://arxiv.org/abs/2605.28111}
 }
 ```
 

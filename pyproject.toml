@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "chreode"
 version = "0.1.0"
-description = "Chreode: a one-step cell world model for temporal dynamics and perturbation prediction (NeurIPS 2026)"
+description = "Chreode: a one-step cell world model for temporal dynamics and perturbation prediction"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
