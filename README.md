@@ -166,7 +166,7 @@ If you use Chreode in your research, please cite:
   year          = {2026},
   eprint        = {2605.28111},
   archivePrefix = {arXiv},
-  primaryClass  = {q-bio.QM},
+  primaryClass  = {cs.LG},
   url           = {https://arxiv.org/abs/2605.28111}
 }
 ```
