@@ -1,0 +1,20 @@
+{
+  "first5": [
+    "0610030E20Rik",
+    "1110002E22Rik",
+    "1110004F10Rik",
+    "1110032F04Rik",
+    "1110038F14Rik"
+  ],
+  "gene_vocab_path": "output/foundation/genhui_v1/catalog/gene_vocab.parquet",
+  "last5": [
+    "Zyg11a",
+    "Zyg11b",
+    "Zyx",
+    "Zzef1",
+    "Zzz3"
+  ],
+  "n_duplicate_unified_genes_skipped": 222,
+  "n_genes": 16485,
+  "sha1": "17481f015e4fdc6220f7764d8c5341a52b164bfa"
+}

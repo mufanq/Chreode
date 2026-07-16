@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Download Phase-0 preprocessing artifacts from HuggingFace Datasets.
 
-Pulls the mouse-human ortholog vocabulary, the unified cell index, the
-train/val/test split manifest, the cached PCA / z_state representations,
-and the downstream-task h5ad slices used by reproduce/02-06.
+Pulls the full mouse-human ortholog mapping, the filtered 16,485-gene
+canonical VAE vocabulary, the unified cell index, the train/val/test split
+manifest, and the downstream-task h5ad slices used by reproduce/02-06.
 
 Usage:
     python scripts/download_phase0.py
@@ -14,11 +14,13 @@ import argparse
 import os
 import sys
 from pathlib import Path
+from shutil import copy2
 
 from huggingface_hub import snapshot_download
 
 REPO_ID = "WhenceFade/chreode-phase0"
 DEST = Path("data/phase0")
+BUNDLED_ARTIFACTS = Path(__file__).resolve().parents[1] / "artifacts"
 
 
 def main() -> int:
@@ -39,6 +41,16 @@ def main() -> int:
         force_download=args.force,
         token=os.environ.get("HF_TOKEN"),
     )
+
+    for name in ("gene_vocab.parquet", "gene_vocab_manifest.json"):
+        source = BUNDLED_ARTIFACTS / name
+        if not source.exists():
+            raise FileNotFoundError(
+                f"Bundled canonical vocabulary artifact is missing: {source}"
+            )
+        destination = args.dest / name
+        copy2(source, destination)
+        print(f"Added bundled canonical vocabulary artifact: {destination}")
 
     total = 0
     for f in sorted(args.dest.rglob("*")):

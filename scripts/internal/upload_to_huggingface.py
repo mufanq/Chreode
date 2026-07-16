@@ -20,17 +20,22 @@ files without re-uploading bytes when the hashes match.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
 import sys
 from pathlib import Path
 from shutil import copy2
 import tempfile
 
+import pandas as pd
 from huggingface_hub import HfApi, create_repo
 
-REPO_PRETRAINED = "WhenceFade/chreode-pretrained"
-REPO_DOWNSTREAM = "WhenceFade/chreode-downstream"
-REPO_PHASE0     = "WhenceFade/chreode-phase0"
+REPO_PRETRAINED = "MufanQiu/chreode-pretrained"
+REPO_DOWNSTREAM = "MufanQiu/chreode-downstream"
+REPO_PHASE0     = "MufanQiu/chreode-phase0"
+
+EXPECTED_GENE_VOCAB_SIZE = 16485
+EXPECTED_GENE_VOCAB_SHA1 = "17481f015e4fdc6220f7764d8c5341a52b164bfa"
 
 CWM_ROOT = Path(
     os.environ.get(
@@ -101,19 +106,24 @@ def stage_downstream(staging: Path) -> None:
 def stage_phase0(staging: Path) -> None:
     """Copy the bits of output/phase0/ that the reproduce flow actually reads."""
     src_phase0 = CWM_ROOT / "output/phase0"
+    src_catalog = CWM_ROOT / "output/foundation/genhui_v1/catalog"
     if not src_phase0.exists():
         raise FileNotFoundError(f"Phase 0 root missing: {src_phase0}")
     items = [
-        "cell_index.parquet",
-        "split_manifest.json",
-        "orthologs/mouse_human_1to1.parquet",
-        "weinreb_ortholog.h5ad",
-        "veres_ortholog.h5ad",
-        "weinreb_clonal.npz",
-        "representations/pca_state.pkl",
+        ("cell_index.parquet", src_phase0 / "cell_index.parquet"),
+        ("split_manifest.json", src_phase0 / "split_manifest.json"),
+        (
+            "orthologs/mouse_human_1to1.parquet",
+            src_phase0 / "orthologs/mouse_human_1to1.parquet",
+        ),
+        ("gene_vocab.parquet", src_catalog / "gene_vocab.parquet"),
+        ("gene_vocab_manifest.json", src_catalog / "gene_vocab_manifest.json"),
+        ("weinreb_ortholog.h5ad", src_phase0 / "weinreb_ortholog.h5ad"),
+        ("veres_ortholog.h5ad", src_phase0 / "veres_ortholog.h5ad"),
+        ("weinreb_clonal.npz", src_phase0 / "weinreb_clonal.npz"),
+        ("representations/pca_state.pkl", src_phase0 / "representations/pca_state.pkl"),
     ]
-    for rel in items:
-        src = src_phase0 / rel
+    for rel, src in items:
         if not src.exists():
             print(f"  WARNING: phase0 item missing, skipping: {rel}")
             continue
@@ -122,7 +132,34 @@ def stage_phase0(staging: Path) -> None:
         print(f"  copy {rel}")
         copy2(src, dst)
 
+    _validate_gene_vocab(staging / "gene_vocab.parquet")
     (staging / "README.md").write_text(_phase0_readme())
+
+
+def _validate_gene_vocab(path: Path) -> None:
+    if not path.exists():
+        raise FileNotFoundError(f"Canonical VAE vocabulary missing: {path}")
+    table = pd.read_parquet(path)
+    required = {"canonical_index", "canonical_gene", "mouse_symbol", "human_symbol"}
+    missing = required - set(table.columns)
+    if missing:
+        raise ValueError(f"Canonical VAE vocabulary missing columns: {sorted(missing)}")
+    if len(table) != EXPECTED_GENE_VOCAB_SIZE:
+        raise ValueError(
+            f"Canonical VAE vocabulary has {len(table)} rows; "
+            f"expected {EXPECTED_GENE_VOCAB_SIZE}"
+        )
+    expected_index = list(range(EXPECTED_GENE_VOCAB_SIZE))
+    if table["canonical_index"].astype(int).tolist() != expected_index:
+        raise ValueError("canonical_index must be contiguous and ordered from 0")
+    genes = table["canonical_gene"].astype(str).tolist()
+    digest = hashlib.sha1("\0".join(genes).encode("utf-8")).hexdigest()
+    if digest != EXPECTED_GENE_VOCAB_SHA1:
+        raise ValueError(
+            f"Canonical gene-list SHA-1 is {digest}; "
+            f"expected {EXPECTED_GENE_VOCAB_SHA1}"
+        )
+    print(f"  validated canonical vocabulary: n={len(table)}, sha1={digest}")
 
 
 def _pretrained_readme() -> str:
@@ -174,8 +211,13 @@ def _phase0_readme() -> str:
         "---\n\n"
         "# Chreode Phase-0 preprocessing\n\n"
         "Cached preprocessing artifacts used by the Chreode reproduce flow:\n\n"
-        "- `orthologs/mouse_human_1to1.parquet` — 16,520-gene mouse-human ortholog "
-        "vocabulary (Ensembl BioMart, confidence=1).\n"
+        "- `orthologs/mouse_human_1to1.parquet` — unfiltered 16,520-row "
+        "mouse-human ortholog mapping (Ensembl BioMart, confidence=1).\n"
+        "- `gene_vocab.parquet` — filtered 16,485-gene canonical order used by "
+        "the released Stage-1 VAE. Sort by `canonical_index`; match mouse queries "
+        "with `mouse_symbol` and human queries with `human_symbol`.\n"
+        "- `gene_vocab_manifest.json` — canonical row count and ordered "
+        "gene-list SHA-1.\n"
         "- `cell_index.parquet` — 2.47M-row registry over the 7-dataset pretrain corpus.\n"
         "- `split_manifest.json` — train/val/test + held-out family + external dataset.\n"
         "- `representations/pca_state.pkl` — normalized PCA basis for downstream baselines.\n"

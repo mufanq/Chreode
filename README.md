@@ -41,6 +41,7 @@ Full tables, ablations, and protocol details are in [paper/chreode.pdf](paper/ch
 ```
 Chreode/
 ├── paper/chreode.pdf           # The paper.
+├── artifacts/                  # Canonical 16,485-gene VAE vocabulary + manifest.
 ├── src/cellworldmodel/         # Python package (installed via `pip install -e .`)
 │   ├── foundation/             # Stage 1 VAE, Stage 2 W-DiT, perturbation arms,
 │   │                           # action encoders, transition index, latent cache.
@@ -103,23 +104,45 @@ python -c "import cellworldmodel; print(cellworldmodel.__version__)"
 pytest tests/test_foundation_config.py tests/test_foundation_vae.py -q
 ```
 
-## Quick start: pretrained inference in 5 lines
+## Quick start: pretrained inference
 
 ```python
 from huggingface_hub import snapshot_download
+import pandas as pd
 from cellworldmodel.foundation import load_chreode_backbone   # Stage 1 VAE + Stage 2 W-DiT
 
 ckpt_dir = snapshot_download(repo_id="WhenceFade/chreode-pretrained")
 model = load_chreode_backbone(ckpt_dir, device="cuda")
+gene_vocab = (
+    pd.read_parquet("artifacts/gene_vocab.parquet")
+    .sort_values("canonical_index")
+)
 
-# Given expression matrix X (cells × 16,520 mouse–human orthologs) at time t,
-# predict the population at t + delta in a single forward pass.
+# X must be aligned to the 16,485 rows of gene_vocab before encoding.
 z_t      = model.encode(X)                                 # (N, 128)
 z_target = model.predict(z_t, delta=1.0)                   # (N, 128)
-X_target = model.decode(z_target)                          # (N, 16520)
+X_target = model.decode(z_target)                          # (N, 16485)
 ```
 
 The helper `load_chreode_backbone` constructs the encoder and dynamics head from `config/foundation_genhui_v1.yaml`, then loads the weights from `ckpt_dir/vae.pt` and `ckpt_dir/dynamics_dit.pt`. See [reproduce/01_pretrain.md](reproduce/01_pretrain.md) for the exact config the released checkpoints were trained with.
+
+### Aligning an external dataset
+
+The released Stage-1 VAE expects the filtered **16,485-gene canonical
+vocabulary**, not the unfiltered 16,520-row ortholog mapping. The exact file is
+bundled as [`artifacts/gene_vocab.parquet`](artifacts/gene_vocab.parquet);
+preserve its `canonical_index` order.
+
+- For mouse data, match query genes against `mouse_symbol`.
+- For human data, match query genes against `human_symbol`.
+- Zero-fill canonical genes absent from the query dataset.
+- Normalize each cell to a total count of 10,000, then apply `log1p`, matching
+  the pretraining input pipeline.
+
+[`gene_vocab_manifest.json`](artifacts/gene_vocab_manifest.json) records the
+expected row count and ordered gene-list SHA-1. The released vocabulary has
+`n_genes=16485` and SHA-1
+`17481f015e4fdc6220f7764d8c5341a52b164bfa`.
 
 ## Reproducing the paper
 
@@ -151,7 +174,7 @@ Three operational facts are not in the paper but matter for reproduction. See [r
 |---|---|---|---|
 | Pretrained backbone | [`WhenceFade/chreode-pretrained`](https://huggingface.co/WhenceFade/chreode-pretrained) | Stage 1 scVI encoder; Stage 2 Waddington-DiT (Dynamics); Stage 2 Static-DiT (control arm for §5.4) | ≈ 4 GB |
 | Downstream fine-tuned | [`WhenceFade/chreode-downstream`](https://huggingface.co/WhenceFade/chreode-downstream) | Weinreb (3 seeds) and Veres (3 seeds) fine-tuned heads | ≈ 230 MB |
-| Phase-0 preprocessing | [`WhenceFade/chreode-phase0`](https://huggingface.co/datasets/WhenceFade/chreode-phase0) | Mouse–human 1:1 ortholog vocabulary, unified cell index, split manifest, downstream-task h5ad slices | ≈ 5.6 GB |
+| Phase-0 preprocessing | [`WhenceFade/chreode-phase0`](https://huggingface.co/datasets/WhenceFade/chreode-phase0) + bundled [`artifacts/`](artifacts/) | Full 16,520-row ortholog mapping, filtered 16,485-gene canonical VAE vocabulary, unified cell index, split manifest, downstream-task h5ad slices | ≈ 5.6 GB |
 
 `scripts/download_weights.py` and `scripts/download_phase0.py` wrap `huggingface_hub.snapshot_download` and place files where the `reproduce/` instructions expect them.
 

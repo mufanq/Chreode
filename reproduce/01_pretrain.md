@@ -53,8 +53,19 @@ This places:
 
 - `data/phase0/cell_index.parquet` — 2.47M cell registry
 - `data/phase0/split_manifest.json` — train/val/test + held-out families
-- `data/phase0/orthologs/mouse_human_1to1.parquet` — 16,520 ortholog vocab
+- `data/phase0/orthologs/mouse_human_1to1.parquet` — unfiltered 16,520-row
+  mouse-human ortholog mapping
+- `data/phase0/gene_vocab.parquet` — filtered 16,485-gene canonical vocabulary
+  used by the released Stage-1 VAE, ordered by `canonical_index`
+- `data/phase0/gene_vocab_manifest.json` — row count, first/last genes, and
+  ordered gene-list SHA-1
 - `data/processed/genhui_all/unified_h5ad_moscot_growth_rate/*.h5ad` — 7 mouse embryo datasets
+
+The ortholog mapping alone is not sufficient for external inference because
+the VAE weights are aligned to the filtered 16,485-gene canonical order. For
+mouse data, align against `mouse_symbol`; for human data, align against
+`human_symbol`. Zero-fill missing genes, normalize each cell to a total count
+of 10,000, and apply `log1p` before encoding.
 
 If you prefer to regenerate Phase 0 from raw datasets, see
 [`scripts/run_phase0_preprocessing.py`](../src/cellworldmodel/script/run_phase0_preprocessing.py).
