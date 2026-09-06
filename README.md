@@ -198,6 +198,22 @@ If you use Chreode in your research, please cite:
 
 MIT — see [LICENSE](LICENSE). Pretraining and downstream datasets retain their original licenses; see Appendix E of the paper.
 
+## Contributing and research review
+
+Develop in a task branch and a separate Git worktree; integration repositories
+must pin this project as a submodule. Changes enter the default branch through a
+pull request with independent sub-agent review, resolved feedback, and evidence
+for engineering quality, research provenance, fair comparisons, and numerical
+compatibility where applicable. Each participating agent records its work and
+verification. New features require original-baseline, feature-disabled, and
+feature-enabled comparisons.
+
+Read the [agent entrypoint](AGENTS.md) and the full
+[research governance policy](docs/research-governance/policy.md), then use the
+[PR record template](docs/research-governance/record-template.md). Publish only
+evidence approved for this public repository; retain restricted source material
+in authorized private records.
+
 ## Acknowledgements
 
 Built on top of [scVI-tools](https://scvi-tools.org/), [GEARS](https://github.com/snap-stanford/GEARS), [Drifting Models](https://arxiv.org/abs/2602.04770), and the [moscot / WOT / PRESCIENT / BranchSBM / CellFlow](paper/chreode.pdf) ecosystem of single-cell dynamics methods. We thank the authors of those projects for releasing their code.
